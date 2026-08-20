@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script>
+!(function(j,a,g){j.__itrace_conf = {bid: 'f43basl8-6nqu7l3w',rel: '0.0.1', spa: true, uid: '', plugins:['jserror','interface','perf','resource','flow','blank']};var b = a.createElement("script");var d = a.getElementsByTagName("script")[0];b.type = "text/javascript";b.crossorigin = true;b.async = true;b.onload = function(){j.__itrace && j.__itrace.setReady()};d.parentNode.insertBefore(b,d);b.src = g})(window, document, "https://g.alicdn.com/woodpeckerx/itrace-next/itrace.iife.js")
+</script>
+
+<!-- 同站请求保留Referer，跨站请求不发送 -->
+<meta name="referrer" content="same-origin">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日任务规划管理器</title>
+<link href="https://cdn.staticfile.net/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.staticfile.net/echarts/5.4.3/echarts.min.js"></script>
+<style>
+:root{--bg:#F1F5F9;--card:#FFFFFF;--text:#1E293B;--muted:#64748B;--border:#E2E8F0;--grad1:#4F46E5;--grad2:#7C3AED;--grad3:#A855F7;--high:#EF4444;--medium:#F59E0B;--low:#10B981;--sidebar-w:250px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}::-webkit-scrollbar-thumb:hover{background:#94A3B8}
+
+/* Sidebar */
+#sidebar{position:fixed;left:0;top:0;width:var(--sidebar-w);height:100vh;background:linear-gradient(180deg,var(--grad1),var(--grad2),var(--grad3));z-index:100;display:flex;flex-direction:column;transition:transform .3s ease;overflow-y:auto}
+#sidebar .logo{padding:28px 24px 20px;font-size:22px;font-weight:800;color:#fff;letter-spacing:1px;display:flex;align-items:center;gap:10px}
+#sidebar .logo i{font-size:24px}
+#sidebar nav{flex:1;padding:0 12px}
+#sidebar nav a{display:flex;align-items:center;gap:12px;padding:12px 16px;margin:4px 0;border-radius:12px;color:rgba(255,255,255,.7);font-size:15px;font-weight:500;cursor:pointer;transition:all .2s ease;text-decoration:none}
+#sidebar nav a:hover{background:rgba(255,255,255,.12);color:#fff}
+#sidebar nav a.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600;box-shadow:0 2px 12px rgba(0,0,0,.15)}
+#sidebar nav a i{width:20px;text-align:center;font-size:16px}
+#sidebar .sidebar-footer{padding:16px 20px;color:rgba(255,255,255,.5);font-size:12px;text-align:center}
+
+/* Main */
+#main{margin-left:var(--sidebar-w);min-height:100vh;padding:24px 32px;transition:margin-left .3s ease}
+.page{display:none;animation:fadeIn .3s ease}.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Cards */
+.card{background:var(--card);border-radius:16px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);transition:box-shadow .2s ease,transform .2s ease}
+.card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08),0 8px 32px rgba(0,0,0,.06)}
+
+/* Task Card */
+.task-card{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--card);border-radius:14px;border:2px solid var(--border);transition:all .25s ease;cursor:grab;position:relative;overflow:hidden}
+.task-card:hover{box-shadow:0 4px 16px rgba(79,70,229,.1);border-color:rgba(79,70,229,.2);transform:translateY(-1px)}
+.task-card.dragging{opacity:.5;transform:scale(.97)}
+.task-card.drag-over{border-color:var(--grad1);border-style:dashed}
+.task-card.current-time{border-color:var(--grad2);box-shadow:0 0 0 3px rgba(124,58,237,.12)}
+.task-card.expired{border-left:4px solid var(--high);background:#FEF2F2}
+.task-card.completed-task{opacity:.65}
+.task-card.completed-task .task-name{text-decoration:line-through;color:var(--muted)}
+
+/* Checkbox */
+.task-check{width:26px;height:26px;border-radius:50%;border:2px solid #CBD5E1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .25s ease;flex-shrink:0}
+.task-check:hover{border-color:var(--grad1);transform:scale(1.1)}
+.task-check.checked{background:linear-gradient(135deg,var(--grad1),var(--grad3));border-color:transparent;animation:checkPop .35s ease}
+.task-check.checked i{color:#fff;font-size:12px}
+@keyframes checkPop{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+/* Importance Badge */
+.imp-badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:.5px}
+.imp-high{background:#FEE2E2;color:var(--high)}.imp-medium{background:#FEF3C7;color:var(--medium)}.imp-low{background:#D1FAE5;color:var(--low)}
+
+/* Progress Bar */
+.progress-bar{height:10px;background:#E2E8F0;border-radius:10px;overflow:hidden;position:relative}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--grad1),var(--grad3));border-radius:10px;transition:width .5s ease;position:relative}
+.progress-fill::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:shimmer 2s infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+/* Toast */
+#toast-container{position:fixed;top:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px}
+.toast{padding:14px 22px;border-radius:12px;color:#fff;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.15);animation:toastIn .3s ease;display:flex;align-items:center;gap:10px;max-width:360px}
+.toast.success{background:linear-gradient(135deg,#10B981,#059669)}.toast.error{background:linear-gradient(135deg,#EF4444,#DC2626)}.toast.info{background:linear-gradient(135deg,var(--grad1),var(--grad3))}
+.toast.out{animation:toastOut .3s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(40px)}}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;animation:modalBgIn .2s ease;padding:20px}
+.modal-box{background:#fff;border-radius:20px;padding:28px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;animation:modalIn .3s ease;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+@keyframes modalBgIn{from{opacity:0}to{opacity:1}}
+@keyframes modalIn{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+/* Form */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.form-input{width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:14px;transition:border-color .2s;outline:none;font-family:inherit}
+.form-input:focus{border-color:var(--grad1)}
+select.form-input{appearance:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 12px center;padding-right:36px}
+textarea.form-input{resize:vertical;min-height:60px}
+
+/* Buttons */
+.btn{padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .2s ease;display:inline-flex;align-items:center;gap:8px;font-family:inherit}
+.btn:hover{transform:translateY(-1px)}.btn:active{transform:translateY(0)}
+.btn-primary{background:linear-gradient(135deg,var(--grad1),var(--grad3));color:#fff;box-shadow:0 4px 12px rgba(79,70,229,.3)}
+.btn-primary:hover{box-shadow:0 6px 20px rgba(79,70,229,.4)}
+.btn-secondary{background:#F1F5F9;color:var(--text)}.btn-secondary:hover{background:#E2E8F0}
+.btn-danger{background:#FEE2E2;color:var(--high)}.btn-danger:hover{background:#FECACA}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}
+.btn-icon{width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:8px;border:none;background:transparent;color:var(--muted);cursor:pointer;transition:all .2s}
+.btn-icon:hover{background:#F1F5F9;color:var(--text)}
+
+/* Countdown Card */
+.countdown-card{background:linear-gradient(135deg,var(--grad1),var(--grad3));border-radius:18px;padding:28px;color:#fff;position:relative;overflow:hidden}
+.countdown-card::before{content:'';position:absolute;top:-30%;right:-20%;width:200px;height:200px;background:rgba(255,255,255,.08);border-radius:50%}
+.countdown-card::after{content:'';position:absolute;bottom:-40%;left:-10%;width:160px;height:160px;background:rgba(255,255,255,.05);border-radius:50%}
+.cd-digit{display:inline-flex;flex-direction:column;align-items:center;min-width:60px}
+.cd-digit .num{font-size:36px;font-weight:800;line-height:1;text-shadow:0 2px 8px rgba(0,0,0,.2)}
+.cd-digit .unit{font-size:12px;opacity:.7;margin-top:4px}
+.cd-sep{font-size:28px;font-weight:300;opacity:.5;margin:0 4px;align-self:flex-start;padding-top:4px}
+
+/* Stats Grid */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.stat-card{text-align:center;padding:20px}
+.stat-card .stat-value{font-size:32px;font-weight:800;background:linear-gradient(135deg,var(--grad1),var(--grad3));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-card .stat-label{font-size:13px;color:var(--muted);margin-top:4px}
+
+/* Week Calendar */
+.week-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.week-cal-item{text-align:center;padding:12px 8px;border-radius:12px;font-size:13px;transition:all .2s}
+.week-cal-item .day-name{font-weight:600;color:var(--muted);font-size:12px;margin-bottom:4px}
+.week-cal-item .day-num{font-size:18px;font-weight:700;margin-bottom:4px}
+.week-cal-item .day-rate{font-size:11px;color:var(--muted)}
+
+/* Achievement Badge */
+.badge-card{display:flex;align-items:center;gap:16px;padding:20px;border-radius:16px;background:var(--card);border:2px solid var(--border);transition:all .3s}
+.badge-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.badge-icon{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.badge-locked{opacity:.4;filter:grayscale(1)}
+
+/* Mobile */
+#menu-toggle{display:none;position:fixed;top:16px;left:16px;z-index:200;width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--grad1),var(--grad3));color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,.3)}
+#sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90}
+
+@media(max-width:768px){
+  #menu-toggle{display:flex;align-items:center;justify-content:center}
+  #sidebar{transform:translateX(-100%)}
+  #sidebar.open{transform:translateX(0)}
+  #sidebar-overlay.open{display:block}
+  #main{margin-left:0;padding:16px;padding-top:68px}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .cd-digit .num{font-size:24px}
+  .cd-digit{min-width:44px}
+  .task-card{padding:10px 12px;gap:10px}
+  .modal-box{padding:20px;margin:12px}
+}
+
+/* Toggle Switch */
+.toggle{position:relative;width:44px;height:24px;cursor:pointer}
+.toggle input{display:none}
+.toggle .slider{position:absolute;inset:0;background:#CBD5E1;border-radius:24px;transition:.3s}
+.toggle .slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked+.slider{background:linear-gradient(135deg,var(--grad1),var(--grad3))}
+.toggle input:checked+.slider::before{transform:translateX(20px)}
+
+/* Upcoming reminder */
+.reminder-bar{background:linear-gradient(135deg,rgba(79,70,229,.08),rgba(168,85,247,.08));border:1px solid rgba(79,70,229,.15);border-radius:12px;padding:12px 18px;display:flex;align-items:center;gap:10px;font-size:14px}
+.reminder-bar i{color:var(--grad2)}
+
+/* Section title */
+.section-title{font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.section-title i{color:var(--grad2);font-size:16px}
+
+/* Chart container */
+.chart-box{width:100%;height:320px}
+</style>
+</head>
+<body>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Mobile Menu Toggle -->
+<button id="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+<div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="logo"><i class="fas fa-bolt"></i> TaskFlow</div>
+  <nav>
+    <a class="active" data-page="today" onclick="switchPage('today')"><i class="fas fa-calendar-day"></i> 今日任务</a>
+    <a data-page="manage" onclick="switchPage('manage')"><i class="fas fa-tasks"></i> 任务管理</a>
+    <a data-page="countdown" onclick="switchPage('countdown')"><i class="fas fa-hourglass-half"></i> 倒计时</a>
+    <a data-page="stats" onclick="switchPage('stats')"><i class="fas fa-chart-bar"></i> 周统计</a>
+    <a data-page="achievements" onclick="switchPage('achievements')"><i class="fas fa-trophy"></i> 成就与激励</a>
+    <a data-page="data" onclick="switchPage('data')"><i class="fas fa-database"></i> 数据管理</a>
+  </nav>
+  <div class="sidebar-footer">TaskFlow v1.0</div>
+</aside>
+
+<!-- Main Content -->
+<div id="main">
+  <!-- Today Page -->
+  <div id="page-today" class="page active"></div>
+  <!-- Manage Page -->
+  <div id="page-manage" class="page"></div>
+  <!-- Countdown Page -->
+  <div id="page-countdown" class="page"></div>
+  <!-- Stats Page -->
+  <div id="page-stats" class="page"></div>
+  <!-- Achievements Page -->
+  <div id="page-achievements" class="page"></div>
+  <!-- Data Page -->
+  <div id="page-data" class="page"></div>
+</div>
+
+<!-- Modal Container -->
+<div id="modal-container"></div>
+
+<script>
+// ==================== State & Data ====================
+let appData = null;
+let currentPage = 'today';
+let clockTimer = null;
+let chartInstances = [];
+
+const IMPORTANCE_MAP = { high: '高', medium: '中', low: '低' };
+const IMPORTANCE_POINTS = { high: 3, medium: 2, low: 1 };
+const LEVEL_MAP = [
+  { min: 0, max: 50, name: '新手', icon: 'fa-seedling', color: '#10B981' },
+  { min: 51, max: 150, name: '进阶达人', icon: 'fa-fire', color: '#F59E0B' },
+  { min: 151, max: Infinity, name: '效率大师', icon: 'fa-crown', color: '#A855F7' }
+];
+
+// ==================== Utility Functions ====================
+function genId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6); }
+function getTodayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function formatDateCN(s) { if(!s) return ''; const p=s.split('-'); return p[0]+'年'+parseInt(p[1])+'月'+parseInt(p[2])+'日'; }
+function getWeekDay(s) { const d=['日','一','二','三','四','五','六']; return '周'+d[new Date(s).getDay()]; }
+function getNowTimeStr() { const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function timeToMin(t) { const p=t.split(':'); return parseInt(p[0])*60+parseInt(p[1]); }
+function isExpired(task) { const today=getTodayStr(), now=getNowTimeStr(); return task.date<=today && timeToMin(task.endTime)<timeToMin(now) && !task.isCompleted; }
+function isCurrentTask(task) { const today=getTodayStr(), now=getNowTimeStr(); return task.date===today && timeToMin(task.startTime)<=timeToMin(now) && timeToMin(task.endTime)>=timeToMin(now) && !task.isCompleted; }
+
+// ==================== Data Persistence ====================
+function loadData() {
+  try { const raw = localStorage.getItem('taskflow_data'); if(raw) return JSON.parse(raw); } catch(e){}
+  return null;
+}
+function saveData() { localStorage.setItem('taskflow_data', JSON.stringify(appData)); }
+
+function initData() {
+  const existing = loadData();
+  if(existing && existing.tasks && existing.tasks.length > 0) { appData = existing; return; }
+
+  // Demo data based on 2026-08-07
+  const today = '2026-08-07';
+  const tasks = [];
+
+  // Helper to create task
+  function mkTask(name, date, st, et, imp, pri, notes, repeat, done) {
+    return { id: genId(), name, date, startTime: st, endTime: et, importance: imp, priority: pri, notes: notes||'', isRepeat: repeat, isCompleted: done, repeatKey: repeat ? name+'-'+st+'-'+et : null };
+  }
+
+  // Today's tasks (8 items)
+  tasks.push(mkTask('晨跑锻炼', today, '06:00','07:00','low',1,'公园慢跑30分钟',true,true));
+  tasks.push(mkTask('阅读英语文章', today, '07:00','08:00','medium',2,'精读一篇外刊',true,true));
+  tasks.push(mkTask('整理工作邮件', today, '08:30','09:30','high',3,'回复客户邮件',false,true));
+  tasks.push(mkTask('项目方案撰写', today, '09:30','12:00','high',4,'完成初稿',false,false));
+  tasks.push(mkTask('午休', today, '12:00','13:00','low',5,'',true,true));
+  tasks.push(mkTask('团队周会', today, '14:00','15:30','medium',6,'汇报本周进度',false,false));
+  tasks.push(mkTask('学习编程练习', today, '16:00','17:30','medium',7,'LeetCode每日一题',true,false));
+  tasks.push(mkTask('晚间复盘总结', today, '20:00','21:00','low',8,'记录今日收获',true,false));
+
+  // Monday 08-03 (6 tasks, all completed)
+  tasks.push(mkTask('晨跑锻炼','2026-08-03','06:00','07:00','low',1,'公园慢跑30分钟',true,true));
+  tasks.push(mkTask('阅读英语文章','2026-08-03','07:00','08:00','medium',2,'精读一篇外刊',true,true));
+  tasks.push(mkTask('整理工作邮件','2026-08-03','08:30','09:30','high',3,'回复客户邮件',false,true));
+  tasks.push(mkTask('项目方案撰写','2026-08-03','09:30','12:00','high',4,'完成初稿',false,true));
+  tasks.push(mkTask('午休','2026-08-03','12:00','13:00','low',5,'',true,true));
+  tasks.push(mkTask('晚间复盘总结','2026-08-03','20:00','21:00','low',6,'记录今日收获',true,true));
+
+  // Tuesday 08-04 (7 tasks, all completed)
+  tasks.push(mkTask('晨跑锻炼','2026-08-04','06:00','07:00','low',1,'公园慢跑30分钟',true,true));
+  tasks.push(mkTask('阅读英语文章','2026-08-04','07:00','08:00','medium',2,'精读一篇外刊',true,true));
+  tasks.push(mkTask('整理工作邮件','2026-08-04','08:30','09:30','high',3,'回复客户邮件',false,true));
+  tasks.push(mkTask('项目方案撰写','2026-08-04','09:30','12:00','high',4,'完成初稿',false,true));
+  tasks.push(mkTask('午休','2026-08-04','12:00','13:00','low',5,'',true,true));
+  tasks.push(mkTask('团队周会','2026-08-04','14:00','15:30','medium',6,'汇报本周进度',false,true));
+  tasks.push(mkTask('晚间复盘总结','2026-08-04','20:00','21:00','low',7,'记录今日收获',true,true));
+
+  // Wednesday 08-05 (5 tasks, all completed)
+  tasks.push(mkTask('晨跑锻炼','2026-08-05','06:00','07:00','low',1,'公园慢跑30分钟',true,true));
+  tasks.push(mkTask('阅读英语文章','2026-08-05','07:00','08:00','medium',2,'精读一篇外刊',true,true));
+  tasks.push(mkTask('整理工作邮件','2026-08-05','08:30','09:30','high',3,'回复客户邮件',false,true));
+  tasks.push(mkTask('午休','2026-08-05','12:00','13:00','low',4,'',true,true));
+  tasks.push(mkTask('晚间复盘总结','2026-08-05','20:00','21:00','low',5,'记录今日收获',true,true));
+
+  // Thursday 08-06 (6 tasks, all completed)
+  tasks.push(mkTask('晨跑锻炼','2026-08-06','06:00','07:00','low',1,'公园慢跑30分钟',true,true));
+  tasks.push(mkTask('阅读英语文章','2026-08-06','07:00','08:00','medium',2,'精读一篇外刊',true,true));
+  tasks.push(mkTask('整理工作邮件','2026-08-06','08:30','09:30','high',3,'回复客户邮件',false,true));
+  tasks.push(mkTask('项目方案撰写','2026-08-06','09:30','12:00','high',4,'完成初稿',false,true));
+  tasks.push(mkTask('午休','2026-08-06','12:00','13:00','low',5,'',true,true));
+  tasks.push(mkTask('学习编程练习','2026-08-06','16:00','17:30','medium',6,'LeetCode每日一题',true,true));
+
+  appData = {
+    tasks,
+    countdowns: [
+      { id: genId(), name: '期末考试', targetDate: '2026-09-15' },
+      { id: genId(), name: '国庆假期', targetDate: '2026-10-01' }
+    ],
+    stats: { totalPoints: 126, streakDays: 4 },
+    weeklyHistory: [
+      { weekStart: '2026-07-13', rate: 75 },
+      { weekStart: '2026-07-20', rate: 82 },
+      { weekStart: '2026-07-27', rate: 88 }
+    ]
+  };
+  saveData();
+}
+
+// Generate repeat task instances for today
+function generateRepeatInstances() {
+  const today = getTodayStr();
+  const todayTasks = appData.tasks.filter(t => t.date === today);
+  const repeatKeys = new Set();
+  // Find all unique repeat keys from non-today tasks
+  appData.tasks.filter(t => t.isRepeat && t.repeatKey).forEach(t => repeatKeys.add(t.repeatKey));
+  // Also from today's tasks
+  todayTasks.filter(t => t.isRepeat && t.repeatKey).forEach(t => repeatKeys.add(t.repeatKey));
+
+  repeatKeys.forEach(rk => {
+    const hasToday = todayTasks.some(t => t.repeatKey === rk);
+    if(!hasToday) {
+      // Find a template (most recent instance)
+      const instances = appData.tasks.filter(t => t.repeatKey === rk).sort((a,b) => b.date.localeCompare(a.date));
+      if(instances.length > 0) {
+        const tpl = instances[0];
+        const newTask = { ...tpl, id: genId(), date: today, isCompleted: false };
+        appData.tasks.push(newTask);
+      }
+    }
+  });
+  saveData();
+}
+
+// ==================== Toast ====================
+function showToast(msg, type='info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', info:'fa-info-circle' };
+  t.innerHTML = '<i class="fas '+icons[type]+'"></i><span>'+msg+'</span>';
+  c.appendChild(t);
+  setTimeout(()=>{ t.classList.add('out'); setTimeout(()=>t.remove(), 300); }, 2500);
+}
+
+// ==================== Modal ====================
+function showModal(html) {
+  const c = document.getElementById('modal-container');
+  c.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal-box">'+html+'</div></div>';
+}
+function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+function showConfirmModal(msg, onConfirm) {
+  showModal('<h3 style="font-size:18px;font-weight:700;margin-bottom:12px">确认操作</h3><p style="color:var(--muted);margin-bottom:20px">'+msg+'</p><div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-danger" onclick="closeModal();('+onConfirm.toString()+')()">确认</button></div>');
+}
+
+// ==================== Navigation ====================
+function switchPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('#sidebar nav a').forEach(a => {
+    a.classList.toggle('active', a.dataset.page === page);
+  });
+  // Render page content
+  const renderers = { today: renderTodayPage, manage: renderManagePage, countdown: renderCountdownPage, stats: renderStatsPage, achievements: renderAchievementsPage, data: renderDataPage };
+  if(renderers[page]) renderers[page]();
+  // Close sidebar on mobile
+  if(window.innerWidth <= 768) { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('open'); }
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+
+// ==================== Today Page ====================
+function renderTodayPage() {
+  const today = getTodayStr();
+  let tasks = appData.tasks.filter(t => t.date === today).sort((a,b) => a.priority - b.priority);
+  const total = tasks.length;
+  const done = tasks.filter(t => t.isCompleted).length;
+  const rate = total > 0 ? Math.round(done/total*100) : 0;
+  const now = new Date();
+  const clockStr = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
+
+  // Find upcoming/current task
+  let upcoming = null;
+  let upcomingType = '';
+  const nowMin = now.getHours()*60+now.getMinutes();
+  for(const t of tasks) {
+    if(t.isCompleted) continue;
+    const sMin = timeToMin(t.startTime), eMin = timeToMin(t.endTime);
+    if(sMin <= nowMin && eMin >= nowMin) { upcoming = t; upcomingType = 'current'; break; }
+    if(sMin > nowMin) { upcoming = t; upcomingType = 'upcoming'; break; }
+  }
+
+  let reminderHtml = '';
+  if(upcoming) {
+    if(upcomingType === 'current') {
+      const remain = timeToMin(upcoming.endTime) - nowMin;
+      const rh = Math.floor(remain/60), rm = remain%60;
+      reminderHtml = '<div class="reminder-bar" style="margin-bottom:16px"><i class="fas fa-bell"></i> 当前任务：<strong>'+upcoming.name+'</strong> 剩余 '+rh+'小时'+rm+'分钟</div>';
+    } else {
+      const diff = timeToMin(upcoming.startTime) - nowMin;
+      const dh = Math.floor(diff/60), dm = diff%60;
+      reminderHtml = '<div class="reminder-bar" style="margin-bottom:16px"><i class="fas fa-bell"></i> 下一任务：<strong>'+upcoming.name+'</strong> 将在 '+dh+'小时'+dm+'分钟后开始</div>';
+    }
+  }
+
+  let taskCardsHtml = '';
+  tasks.forEach((t, idx) => {
+    const isCurrent = isCurrentTask(t);
+    const expired = isExpired(t);
+    const cls = ['task-card'];
+    if(isCurrent) cls.push('current-time');
+    if(expired) cls.push('expired');
+    if(t.isCompleted) cls.push('completed-task');
+
+    taskCardsHtml += '<div class="'+cls.join(' ')+'" draggable="true" data-id="'+t.id+'" ondragstart="onDragStart(event)" ondragover="onDragOver(event)" ondrop="onDrop(event)" ondragend="onDragEnd(event)">';
+    taskCardsHtml += '<div class="btn-icon" style="cursor:grab;color:#CBD5E1"><i class="fas fa-grip-vertical"></i></div>';
+    taskCardsHtml += '<div class="task-check '+(t.isCompleted?'checked':'')+'" onclick="toggleComplete(\''+t.id+'\')">';
+    if(t.isCompleted) taskCardsHtml += '<i class="fas fa-check"></i>';
+    taskCardsHtml += '</div>';
+    taskCardsHtml += '<div style="flex:1;min-width:0"><div class="task-name" style="font-weight:600;font-size:15px">'+t.name+'</div>';
+    taskCardsHtml += '<div style="font-size:12px;color:var(--muted);margin-top:2px"><i class="far fa-clock" style="margin-right:4px"></i>'+t.startTime+' - '+t.endTime;
+    if(t.notes) taskCardsHtml += ' &nbsp;|&nbsp; '+t.notes;
+    taskCardsHtml += '</div></div>';
+    taskCardsHtml += '<span class="imp-badge imp-'+t.importance+'">'+IMPORTANCE_MAP[t.importance]+'</span>';
+    taskCardsHtml += '<span style="font-size:12px;color:var(--muted);font-weight:600;min-width:28px;text-align:center">#'+t.priority+'</span>';
+    taskCardsHtml += '<div style="display:flex;flex-direction:column;gap:2px">';
+    taskCardsHtml += '<button class="btn-icon" onclick="moveTask(\''+t.id+'\',-1)" title="上移"><i class="fas fa-chevron-up" style="font-size:10px"></i></button>';
+    taskCardsHtml += '<button class="btn-icon" onclick="moveTask(\''+t.id+'\',1)" title="下移"><i class="fas fa-chevron-down" style="font-size:10px"></i></button>';
+    taskCardsHtml += '</div>';
+    if(expired) taskCardsHtml += '<span style="position:absolute;top:6px;right:8px;font-size:10px;color:var(--high);font-weight:600">已过期</span>';
+    if(isCurrent) taskCardsHtml += '<span style="position:absolute;top:6px;right:8px;font-size:10px;color:var(--grad2);font-weight:600">进行中</span>';
+    taskCardsHtml += '</div>';
+  });
+
+  if(tasks.length === 0) {
+    taskCardsHtml = '<div style="text-align:center;padding:60px 20px;color:var(--muted)"><i class="far fa-calendar-check" style="font-size:48px;margin-bottom:16px;display:block;opacity:.3"></i><p>今天还没有任务，去任务管理添加吧</p></div>';
+  }
+
+  const el = document.getElementById('page-today');
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+      <div><h1 style="font-size:26px;font-weight:800">今日任务</h1><p style="color:var(--muted);font-size:14px;margin-top:2px">${formatDateCN(today)} ${getWeekDay(today)}</p></div>
+      <div style="text-align:right"><div id="live-clock" style="font-size:36px;font-weight:800;background:linear-gradient(135deg,var(--grad1),var(--grad3));-webkit-background-clip:text;-webkit-text-fill-color:transparent">${clockStr}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:20px;padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:14px;font-weight:600">今日进度</span>
+        <span style="font-size:14px;color:var(--muted)">已完成 ${done} / 共 ${total} 项 &nbsp; <strong style="color:var(--grad1)">${rate}%</strong></span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${rate}%"></div></div>
+    </div>
+    ${reminderHtml}
+    <div style="display:flex;flex-direction:column;gap:10px" id="today-task-list">${taskCardsHtml}</div>
+  `;
+}
+
+// Toggle task completion
+function toggleComplete(id) {
+  const task = appData.tasks.find(t => t.id === id);
+  if(!task) return;
+  task.isCompleted = !task.isCompleted;
+  if(task.isCompleted) {
+    appData.stats.totalPoints += IMPORTANCE_POINTS[task.importance];
+    showToast('任务已完成，+'+IMPORTANCE_POINTS[task.importance]+'积分', 'success');
+  } else {
+    appData.stats.totalPoints = Math.max(0, appData.stats.totalPoints - IMPORTANCE_POINTS[task.importance]);
+    showToast('已取消完成', 'info');
+  }
+  updateStreak();
+  saveData();
+  renderTodayPage();
+}
+
+// Move task up/down
+function moveTask(id, dir) {
+  const today = getTodayStr();
+  let tasks = appData.tasks.filter(t => t.date === today).sort((a,b) => a.priority - b.priority);
+  const idx = tasks.findIndex(t => t.id === id);
+  if(idx < 0) return;
+  const newIdx = idx + dir;
+  if(newIdx < 0 || newIdx >= tasks.length) return;
+  // Swap priorities
+  const tmp = tasks[idx].priority;
+  tasks[idx].priority = tasks[newIdx].priority;
+  tasks[newIdx].priority = tmp;
+  saveData();
+  renderTodayPage();
+}
+
+// Drag and Drop
+let dragId = null;
+function onDragStart(e) {
+  dragId = e.currentTarget.dataset.id;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const card = e.currentTarget;
+  card.classList.add('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  const targetId = e.currentTarget.dataset.id;
+  e.currentTarget.classList.remove('drag-over');
+  if(!dragId || dragId === targetId) return;
+  const today = getTodayStr();
+  let tasks = appData.tasks.filter(t => t.date === today).sort((a,b) => a.priority - b.priority);
+  const fromIdx = tasks.findIndex(t => t.id === dragId);
+  const toIdx = tasks.findIndex(t => t.id === targetId);
+  if(fromIdx < 0 || toIdx < 0) return;
+  const [moved] = tasks.splice(fromIdx, 1);
+  tasks.splice(toIdx, 0, moved);
+  tasks.forEach((t, i) => { const orig = appData.tasks.find(x => x.id === t.id); if(orig) orig.priority = i+1; });
+  saveData();
+  renderTodayPage();
+}
+function onDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  dragId = null;
+}
+
+// ==================== Task Management Page ====================
+let manageFilter = { date: getTodayStr(), importance: '', search: '' };
+
+function renderManagePage() {
+  const el = document.getElementById('page-manage');
+  let tasks = [...appData.tasks].sort((a,b) => a.date.localeCompare(b.date) || a.priority - b.priority);
+
+  // Apply filters
+  if(manageFilter.date) tasks = tasks.filter(t => t.date === manageFilter.date);
+  if(manageFilter.importance) tasks = tasks.filter(t => t.importance === manageFilter.importance);
+  if(manageFilter.search) {
+    const kw = manageFilter.search.toLowerCase();
+    tasks = tasks.filter(t => t.name.toLowerCase().includes(kw) || (t.notes && t.notes.toLowerCase().includes(kw)));
+  }
+
+  let listHtml = '';
+  tasks.forEach(t => {
+    const expired = isExpired(t);
+    const isPast = t.date < getTodayStr();
+    const cls = expired ? 'expired' : '';
+    listHtml += '<div class="task-card '+cls+'" style="margin-bottom:8px;cursor:default">';
+    listHtml += '<div class="task-check '+(t.isCompleted?'checked':'')+'" onclick="toggleCompleteManage(\''+t.id+'\')">';
+    if(t.isCompleted) listHtml += '<i class="fas fa-check"></i>';
+    listHtml += '</div>';
+    listHtml += '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px" class="'+(t.isCompleted?'line-through opacity-50':'')+'">'+t.name+'</div>';
+    listHtml += '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+formatDateCN(t.date)+' '+t.startTime+'-'+t.endTime;
+    if(t.notes) listHtml += ' | '+t.notes;
+    if(t.isRepeat) listHtml += ' <span style="color:var(--grad2)"><i class="fas fa-redo-alt" style="font-size:10px"></i> 每日</span>';
+    listHtml += '</div></div>';
+    listHtml += '<span class="imp-badge imp-'+t.importance+'">'+IMPORTANCE_MAP[t.importance]+'</span>';
+    if(expired) listHtml += '<span style="font-size:11px;color:var(--high);font-weight:600;margin-left:4px">已过期</span>';
+    if(isPast && !t.isCompleted) listHtml += '<button class="btn btn-sm btn-secondary" onclick="postponeTask(\''+t.id+'\')" style="margin-left:6px"><i class="fas fa-forward"></i> 顺延</button>';
+    listHtml += '<button class="btn-icon" onclick="editTask(\''+t.id+'\')" title="编辑"><i class="fas fa-pen" style="font-size:12px"></i></button>';
+    listHtml += '<button class="btn-icon" onclick="confirmDeleteTask(\''+t.id+'\')" title="删除" style="color:var(--high)"><i class="fas fa-trash" style="font-size:12px"></i></button>';
+    listHtml += '</div>';
+  });
+
+  if(tasks.length === 0) listHtml = '<div style="text-align:center;padding:40px;color:var(--muted)">没有找到匹配的任务</div>';
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+      <h1 style="font-size:26px;font-weight:800">任务管理</h1>
+      <button class="btn btn-primary" onclick="showTaskForm()"><i class="fas fa-plus"></i> 添加任务</button>
+    </div>
+    <div class="card" style="margin-bottom:20px;padding:16px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <div style="flex:1;min-width:140px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">日期</label><input type="date" class="form-input" value="${manageFilter.date}" onchange="manageFilter.date=this.value;renderManagePage()"></div>
+        <div style="flex:1;min-width:120px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">重要程度</label><select class="form-input" onchange="manageFilter.importance=this.value;renderManagePage()"><option value="">全部</option><option value="high" ${manageFilter.importance==='high'?'selected':''}>高</option><option value="medium" ${manageFilter.importance==='medium'?'selected':''}>中</option><option value="low" ${manageFilter.importance==='low'?'selected':''}>低</option></select></div>
+        <div style="flex:2;min-width:180px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">搜索</label><input type="text" class="form-input" placeholder="搜索任务名称或备注..." value="${manageFilter.search}" oninput="manageFilter.search=this.value;renderManagePage()"></div>
+      </div>
+    </div>
+    <div>${listHtml}</div>
+  `;
+}
+
+function toggleCompleteManage(id) {
+  const task = appData.tasks.find(t => t.id === id);
+  if(!task) return;
+  task.isCompleted = !task.isCompleted;
+  if(task.isCompleted) {
+    appData.stats.totalPoints += IMPORTANCE_POINTS[task.importance];
+    showToast('任务已完成，+'+IMPORTANCE_POINTS[task.importance]+'积分', 'success');
+  } else {
+    appData.stats.totalPoints = Math.max(0, appData.stats.totalPoints - IMPORTANCE_POINTS[task.importance]);
+    showToast('已取消完成', 'info');
+  }
+  updateStreak();
+  saveData();
+  renderManagePage();
+}
+
+function postponeTask(id) {
+  const task = appData.tasks.find(t => t.id === id);
+  if(!task) return;
+  task.date = getTodayStr();
+  task.isCompleted = false;
+  saveData();
+  showToast('已顺延到今天', 'success');
+  renderManagePage();
+}
+
+function confirmDeleteTask(id) {
+  showConfirmModal('确定要删除这个任务吗？此操作不可撤销。', function() {
+    appData.tasks = appData.tasks.filter(t => t.id !== id);
+    saveData();
+    showToast('任务已删除', 'success');
+    renderManagePage();
+  });
+}
+
+// Task Form
+function showTaskForm(task) {
+  const isEdit = !!task;
+  const t = task || { name:'', date:getTodayStr(), startTime:'', endTime:'', importance:'medium', priority:appData.tasks.filter(x=>x.date===getTodayStr()).length+1, notes:'', isRepeat:false };
+  showModal(`
+    <h3 style="font-size:18px;font-weight:700;margin-bottom:20px">${isEdit?'编辑任务':'添加任务'}</h3>
+    <div class="form-group"><label>任务名称</label><input type="text" class="form-input" id="tf-name" value="${t.name}" placeholder="请输入任务名称"></div>
+    <div style="display:flex;gap:12px">
+      <div class="form-group" style="flex:1"><label>日期</label><input type="date" class="form-input" id="tf-date" value="${t.date}"></div>
+      <div class="form-group" style="flex:1"><label>优先级</label><input type="number" class="form-input" id="tf-priority" value="${t.priority}" min="1"></div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <div class="form-group" style="flex:1"><label>开始时间</label><input type="time" class="form-input" id="tf-start" value="${t.startTime}"></div>
+      <div class="form-group" style="flex:1"><label>结束时间</label><input type="time" class="form-input" id="tf-end" value="${t.endTime}"></div>
+    </div>
+    <div class="form-group"><label>重要程度</label><select class="form-input" id="tf-imp"><option value="high" ${t.importance==='high'?'selected':''}>高</option><option value="medium" ${t.importance==='medium'?'selected':''}>中</option><option value="low" ${t.importance==='low'?'selected':''}>低</option></select></div>
+    <div class="form-group"><label>备注</label><textarea class="form-input" id="tf-notes" placeholder="选填备注...">${t.notes}</textarea></div>
+    <div class="form-group" style="display:flex;align-items:center;gap:10px"><label style="margin:0">每日重复</label><label class="toggle"><input type="checkbox" id="tf-repeat" ${t.isRepeat?'checked':''}><span class="slider"></span></label></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveTaskForm(${isEdit?"'"+t.id+"'":'null'})">${isEdit?'保存修改':'添加任务'}</button>
+    </div>
+  `);
+}
+
+function saveTaskForm(editId) {
+  const name = document.getElementById('tf-name').value.trim();
+  const date = document.getElementById('tf-date').value;
+  const startTime = document.getElementById('tf-start').value;
+  const endTime = document.getElementById('tf-end').value;
+  const importance = document.getElementById('tf-imp').value;
+  const priority = parseInt(document.getElementById('tf-priority').value) || 1;
+  const notes = document.getElementById('tf-notes').value.trim();
+  const isRepeat = document.getElementById('tf-repeat').checked;
+
+  if(!name) { showToast('请输入任务名称', 'error'); return; }
+  if(!date) { showToast('请选择日期', 'error'); return; }
+  if(!startTime || !endTime) { showToast('请设置开始和结束时间', 'error'); return; }
+  if(timeToMin(endTime) <= timeToMin(startTime)) { showToast('结束时间必须晚于开始时间', 'error'); return; }
+
+  const repeatKey = isRepeat ? name+'-'+startTime+'-'+endTime : null;
+
+  if(editId) {
+    const task = appData.tasks.find(t => t.id === editId);
+    if(task) { Object.assign(task, { name, date, startTime, endTime, importance, priority, notes, isRepeat, repeatKey }); }
+    showToast('任务已更新', 'success');
+  } else {
+    appData.tasks.push({ id: genId(), name, date, startTime, endTime, importance, priority, notes, isRepeat, isCompleted: false, repeatKey });
+    showToast('任务已添加', 'success');
+  }
+  saveData();
+  closeModal();
+  if(currentPage === 'manage') renderManagePage();
+  if(currentPage === 'today') renderTodayPage();
+}
+
+function editTask(id) {
+  const task = appData.tasks.find(t => t.id === id);
+  if(task) showTaskForm(task);
+}
+
+// ==================== Countdown Page ====================
+function renderCountdownPage() {
+  const el = document.getElementById('page-countdown');
+
+  // Task reminders
+  const today = getTodayStr();
+  const todayTasks = appData.tasks.filter(t => t.date === today && !t.isCompleted).sort((a,b) => timeToMin(a.startTime) - timeToMin(b.startTime));
+  const now = new Date();
+  const nowMin = now.getHours()*60+now.getMinutes();
+
+  let reminderHtml = '';
+  todayTasks.forEach(t => {
+    const sMin = timeToMin(t.startTime), eMin = timeToMin(t.endTime);
+    if(sMin <= nowMin && eMin >= nowMin) {
+      const remain = eMin - nowMin;
+      reminderHtml += '<div class="reminder-bar" style="margin-bottom:10px"><i class="fas fa-play-circle"></i> <strong>'+t.name+'</strong> 进行中，剩余 '+Math.floor(remain/60)+'小时'+remain%60+'分钟</div>';
+    } else if(sMin > nowMin) {
+      const diff = sMin - nowMin;
+      reminderHtml += '<div class="reminder-bar" style="margin-bottom:10px"><i class="fas fa-clock"></i> <strong>'+t.name+'</strong> 将在 '+Math.floor(diff/60)+'小时'+diff%60+'分钟后开始</div>';
+    }
+  });
+  if(!reminderHtml) reminderHtml = '<div style="color:var(--muted);text-align:center;padding:20px">今日没有待进行的任务提醒</div>';
+
+  // Countdown events
+  let cdHtml = '';
+  appData.countdowns.forEach(c => {
+    const target = new Date(c.targetDate + 'T00:00:00');
+    const diff = target - now;
+    const days = Math.max(0, Math.floor(diff/(1000*60*60*24)));
+    const hours = Math.max(0, Math.floor((diff%(1000*60*60*24))/(1000*60*60)));
+    const mins = Math.max(0, Math.floor((diff%(1000*60*60))/(1000*60)));
+    const secs = Math.max(0, Math.floor((diff%(1000*60))/1000));
+
+    cdHtml += '<div class="countdown-card" style="margin-bottom:16px" data-cd-id="'+c.id+'" data-target="'+c.targetDate+'">';
+    cdHtml += '<div style="position:relative;z-index:1">';
+    cdHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="font-size:18px;font-weight:700">距离'+c.name+'还有</h3>';
+    cdHtml += '<button class="btn-icon" style="color:rgba(255,255,255,.6)" onclick="confirmDeleteCountdown(\''+c.id+'\')"><i class="fas fa-trash"></i></button></div>';
+    cdHtml += '<div style="display:flex;align-items:flex-start;justify-content:center;flex-wrap:wrap;gap:4px">';
+    cdHtml += '<div class="cd-digit"><span class="num cd-d">'+days+'</span><span class="unit">天</span></div><span class="cd-sep">:</span>';
+    cdHtml += '<div class="cd-digit"><span class="num cd-h">'+String(hours).padStart(2,'0')+'</span><span class="unit">时</span></div><span class="cd-sep">:</span>';
+    cdHtml += '<div class="cd-digit"><span class="num cd-m">'+String(mins).padStart(2,'0')+'</span><span class="unit">分</span></div><span class="cd-sep">:</span>';
+    cdHtml += '<div class="cd-digit"><span class="num cd-s">'+String(secs).padStart(2,'0')+'</span><span class="unit">秒</span></div>';
+    cdHtml += '</div>';
+    cdHtml += '<div style="text-align:center;margin-top:12px;opacity:.6;font-size:13px">目标日期：'+formatDateCN(c.targetDate)+'</div>';
+    cdHtml += '</div></div>';
+  });
+
+  if(!appData.countdowns.length) cdHtml = '<div style="text-align:center;padding:40px;color:var(--muted)">还没有倒计时事件，点击上方按钮添加</div>';
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+      <h1 style="font-size:26px;font-weight:800">倒计时</h1>
+      <button class="btn btn-primary" onclick="showCountdownForm()"><i class="fas fa-plus"></i> 添加倒计时</button>
+    </div>
+    <div class="section-title"><i class="fas fa-bell"></i> 今日任务提醒</div>
+    <div class="card" style="margin-bottom:24px;padding:20px">${reminderHtml}</div>
+    <div class="section-title"><i class="fas fa-hourglass-half"></i> 事件倒计时</div>
+    ${cdHtml}
+  `;
+}
+
+function showCountdownForm() {
+  showModal(`
+    <h3 style="font-size:18px;font-weight:700;margin-bottom:20px">添加倒计时</h3>
+    <div class="form-group"><label>事件名称</label><input type="text" class="form-input" id="cd-name" placeholder="如：期末考试"></div>
+    <div class="form-group"><label>目标日期</label><input type="date" class="form-input" id="cd-date"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveCountdown()">添加</button>
+    </div>
+  `);
+}
+
+function saveCountdown() {
+  const name = document.getElementById('cd-name').value.trim();
+  const date = document.getElementById('cd-date').value;
+  if(!name) { showToast('请输入事件名称', 'error'); return; }
+  if(!date) { showToast('请选择目标日期', 'error'); return; }
+  appData.countdowns.push({ id: genId(), name, targetDate: date });
+  saveData();
+  closeModal();
+  showToast('倒计时已添加', 'success');
+  renderCountdownPage();
+}
+
+function confirmDeleteCountdown(id) {
+  showConfirmModal('确定要删除这个倒计时吗？', function() {
+    appData.countdowns = appData.countdowns.filter(c => c.id !== id);
+    saveData();
+    showToast('倒计时已删除', 'success');
+    renderCountdownPage();
+  });
+}
+
+// ==================== Weekly Stats Page ====================
+function renderStatsPage() {
+  const el = document.getElementById('page-stats');
+
+  // Calculate this week's data (Mon-Sun)
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+
+  const weekDates = [];
+  for(let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    weekDates.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+  }
+
+  // Week overview
+  const weekTasks = appData.tasks.filter(t => weekDates.includes(t.date));
+  const weekTotal = weekTasks.length;
+  const weekDone = weekTasks.filter(t => t.isCompleted).length;
+  const weekRate = weekTotal > 0 ? Math.round(weekDone/weekTotal*100) : 0;
+
+  // Streak
+  updateStreak();
+
+  el.innerHTML = `
+    <h1 style="font-size:26px;font-weight:800;margin-bottom:24px">周统计</h1>
+    <div class="stats-grid" style="margin-bottom:24px">
+      <div class="card stat-card"><div class="stat-value">${weekTotal}</div><div class="stat-label">本周任务总数</div></div>
+      <div class="card stat-card"><div class="stat-value">${weekDone}</div><div class="stat-label">已完成数</div></div>
+      <div class="card stat-card"><div class="stat-value">${weekRate}%</div><div class="stat-label">完成率</div></div>
+      <div class="card stat-card"><div class="stat-value">${appData.stats.streakDays}</div><div class="stat-label">连续打卡天数</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px" class="stats-charts-row">
+      <div class="card"><div class="section-title"><i class="fas fa-chart-bar"></i> 每日完成情况</div><div id="chart-daily" class="chart-box"></div></div>
+      <div class="card"><div class="section-title"><i class="fas fa-chart-line"></i> 完成率趋势</div><div id="chart-trend" class="chart-box"></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px" class="stats-charts-row">
+      <div class="card"><div class="section-title"><i class="fas fa-chart-pie"></i> 重要程度分布</div><div id="chart-pie" class="chart-box"></div></div>
+      <div class="card"><div class="section-title"><i class="fas fa-th"></i> 时间段热力分布</div><div id="chart-heatmap" class="chart-box"></div></div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-title"><i class="fas fa-calendar-week"></i> 周历视图</div>
+      <div id="week-calendar"></div>
+    </div>
+  `;
+
+  // Responsive chart grid
+  if(window.innerWidth <= 768) {
+    document.querySelectorAll('.stats-charts-row').forEach(r => r.style.gridTemplateColumns = '1fr');
+  }
+
+  // Render charts after DOM is ready
+  setTimeout(() => {
+    renderDailyChart(weekDates);
+    renderTrendChart(weekDates);
+    renderPieChart();
+    renderHeatmapChart(weekDates);
+    renderWeekCalendar(weekDates);
+  }, 100);
+}
+
+function renderDailyChart(weekDates) {
+  const dom = document.getElementById('chart-daily');
+  if(!dom) return;
+  const chart = echarts.init(dom);
+  chartInstances.push(chart);
+
+  const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+  const planned = [], completed = [];
+  weekDates.forEach(d => {
+    const tasks = appData.tasks.filter(t => t.date === d);
+    planned.push(tasks.length);
+    completed.push(tasks.filter(t => t.isCompleted).length);
+  });
+
+  chart.setOption({
+    tooltip: { trigger:'axis' },
+    legend: { data:['计划数','完成数'], top:0 },
+    grid: { left:40, right:20, bottom:30, top:40 },
+    xAxis: { type:'category', data:dayNames },
+    yAxis: { type:'value', minInterval:1 },
+    series:[
+      { name:'计划数', type:'bar', data:planned, itemStyle:{color:'#CBD5E1'}, barWidth:20 },
+      { name:'完成数', type:'bar', data:completed, itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'#4F46E5'},{offset:1,color:'#A855F7'}]}}, barWidth:20 }
+    ]
+  });
+}
+
+function renderTrendChart(weekDates) {
+  const dom = document.getElementById('chart-trend');
+  if(!dom) return;
+  const chart = echarts.init(dom);
+  chartInstances.push(chart);
+
+  const weeks = appData.weeklyHistory.map(w => w.weekStart);
+  const rates = appData.weeklyHistory.map(w => w.rate);
+
+  // Add current week
+  const currentWeekStart = weekDates[0];
+  const weekTasks = appData.tasks.filter(t => weekDates.includes(t.date));
+  const currentRate = weekTasks.length > 0 ? Math.round(weekTasks.filter(t=>t.isCompleted).length/weekTasks.length*100) : 0;
+  weeks.push(currentWeekStart);
+  rates.push(currentRate);
+
+  const labels = weeks.map((w,i) => {
+    const d = new Date(w);
+    return (d.getMonth()+1)+'/'+d.getDate()+'周';
+  });
+
+  chart.setOption({
+    tooltip: { trigger:'axis', formatter:'{b}: {c}%' },
+    grid: { left:50, right:20, bottom:30, top:20 },
+    xAxis: { type:'category', data:labels },
+    yAxis: { type:'value', min:0, max:100, axisLabel:{formatter:'{value}%'} },
+    series:[{
+      type:'line', data:rates, smooth:true,
+      lineStyle:{color:'#7C3AED',width:3},
+      itemStyle:{color:'#7C3AED'},
+      areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(124,58,237,0.3)'},{offset:1,color:'rgba(124,58,237,0)'}]}},
+      symbol:'circle', symbolSize:8
+    }]
+  });
+}
+
+function renderPieChart() {
+  const dom = document.getElementById('chart-pie');
+  if(!dom) return;
+  const chart = echarts.init(dom);
+  chartInstances.push(chart);
+
+  const data = ['high','medium','low'].map(imp => {
+    const tasks = appData.tasks.filter(t => t.importance === imp);
+    const done = tasks.filter(t => t.isCompleted).length;
+    return { name: IMPORTANCE_MAP[imp]+'重要度 ('+done+'/'+tasks.length+'完成)', value: tasks.length };
+  });
+
+  chart.setOption({
+    tooltip: { trigger:'item', formatter:'{b}: {c}项 ({d}%)' },
+    legend: { bottom:0 },
+    series:[{
+      type:'pie', radius:['40%','70%'], center:['50%','45%'],
+      data: data,
+      label: { formatter:'{b}\n{d}%' },
+      itemStyle: {
+        color: function(p) { return [data[0].value>0?'#EF4444':'#FCA5A5', data[1].value>0?'#F59E0B':'#FCD34D', data[2].value>0?'#10B981':'#6EE7B7'][p.dataIndex]; }
+      },
+      emphasis: { itemStyle:{shadowBlur:10,shadowColor:'rgba(0,0,0,0.2)'} }
+    }]
+  });
+}
+
+function renderHeatmapChart(weekDates) {
+  const dom = document.getElementById('chart-heatmap');
+  if(!dom) return;
+  const chart = echarts.init(dom);
+  chartInstances.push(chart);
+
+  // Time slots
+  const slots = ['06:00','08:00','10:00','12:00','14:00','16:00','18:00','20:00'];
+  const slotLabels = ['早晨','上午','午前','中午','下午','傍晚','晚间','夜间'];
+  const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+
+  const heatData = [];
+  let maxVal = 0;
+  weekDates.forEach((d, di) => {
+    const dayTasks = appData.tasks.filter(t => t.date === d);
+    slots.forEach((s, si) => {
+      const sMin = timeToMin(s);
+      const eMin = si < slots.length-1 ? timeToMin(slots[si+1]) : 1440;
+      const count = dayTasks.filter(t => {
+        const ts = timeToMin(t.startTime), te = timeToMin(t.endTime);
+        return ts < eMin && te > sMin;
+      }).length;
+      if(count > maxVal) maxVal = count;
+      heatData.push([di, si, count]);
+    });
+  });
+
+  chart.setOption({
+    tooltip: { formatter:function(p){return dayNames[p.value[0]]+' '+slotLabels[p.value[1]]+'<br>任务数: '+p.value[2];} },
+    grid: { left:60, right:40, bottom:30, top:10 },
+    xAxis: { type:'category', data:dayNames, splitArea:{show:true} },
+    yAxis: { type:'category', data:slotLabels, splitArea:{show:true} },
+    visualMap: { min:0, max:Math.max(maxVal,3), calculable:true, orient:'horizontal', left:'center', bottom:0, inRange:{color:['#EEF2FF','#4F46E5','#7C3AED']} },
+    series:[{ type:'heatmap', data:heatData, label:{show:true,formatter:function(p){return p.value[2]||'';}}, emphasis:{itemStyle:{shadowBlur:5,shadowColor:'rgba(0,0,0,0.3)'}} }]
+  });
+}
+
+function renderWeekCalendar(weekDates) {
+  const container = document.getElementById('week-calendar');
+  if(!container) return;
+  const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+  let html = '<div class="week-cal">';
+  weekDates.forEach((d, i) => {
+    const tasks = appData.tasks.filter(t => t.date === d);
+    const done = tasks.filter(t => t.isCompleted).length;
+    const rate = tasks.length > 0 ? Math.round(done/tasks.length*100) : 0;
+    let bgColor = '#F1F5F9';
+    if(rate > 0 && rate < 50) bgColor = '#DDD6FE';
+    else if(rate >= 50 && rate < 100) bgColor = '#A78BFA';
+    else if(rate === 100) bgColor = '#7C3AED';
+    const dateParts = d.split('-');
+    html += '<div class="week-cal-item" style="background:'+bgColor+';color:'+((rate>=50)?'#fff':'var(--text)')+'">';
+    html += '<div class="day-name">'+dayNames[i]+'</div>';
+    html += '<div class="day-num">'+parseInt(dateParts[2])+'</div>';
+    html += '<div class="day-rate" style="color:'+((rate>=50)?'rgba(255,255,255,.7)':'var(--muted)')+'">'+rate+'%</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ==================== Achievements Page ====================
+function renderAchievementsPage() {
+  const el = document.getElementById('page-achievements');
+  const points = appData.stats.totalPoints;
+  const level = getLevel(points);
+  updateStreak();
+  const streak = appData.stats.streakDays;
+
+  // Points progress to next level
+  let nextLevel = null, progressInLevel = 0, levelRange = 0;
+  for(let i = 0; i < LEVEL_MAP.length; i++) {
+    if(points >= LEVEL_MAP[i].min && points <= LEVEL_MAP[i].max) {
+      progressInLevel = points - LEVEL_MAP[i].min;
+      levelRange = (LEVEL_MAP[i].max === Infinity ? 300 : LEVEL_MAP[i].max) - LEVEL_MAP[i].min;
+      nextLevel = LEVEL_MAP[i+1] || null;
+      break;
+    }
+  }
+  const levelProgress = Math.min(100, Math.round(progressInLevel / levelRange * 100));
+
+  // Badges
+  const badges = [
+    { name:'初出茅庐', desc:'完成第一个任务', icon:'fa-star', color:'#F59E0B', unlocked: points >= 1 },
+    { name:'坚持三天', desc:'连续打卡3天', icon:'fa-fire', color:'#EF4444', unlocked: streak >= 3 },
+    { name:'周而复始', desc:'连续打卡7天', icon:'fa-bolt', color:'#7C3AED', unlocked: streak >= 7 },
+    { name:'积分达人', desc:'累计获得50积分', icon:'fa-gem', color:'#10B981', unlocked: points >= 50 },
+    { name:'进阶之路', desc:'达到进阶达人等级', icon:'fa-shield-alt', color:'#3B82F6', unlocked: points >= 51 },
+    { name:'效率巅峰', desc:'达到效率大师等级', icon:'fa-crown', color:'#A855F7', unlocked: points >= 151 },
+    { name:'月度坚持', desc:'连续打卡30天', icon:'fa-trophy', color:'#F97316', unlocked: streak >= 30 },
+    { name:'百积如山', desc:'累计获得100积分', icon:'fa-mountain', color:'#06B6D4', unlocked: points >= 100 }
+  ];
+
+  let badgesHtml = '';
+  badges.forEach(b => {
+    badgesHtml += '<div class="badge-card '+(b.unlocked?'':'badge-locked')+'">';
+    badgesHtml += '<div class="badge-icon" style="background:'+(b.unlocked?b.color+'22':'#E2E8F0')+';color:'+(b.unlocked?b.color:'#94A3B8')+'"><i class="fas '+b.icon+'"></i></div>';
+    badgesHtml += '<div><div style="font-weight:700;font-size:15px">'+b.name+'</div><div style="font-size:12px;color:var(--muted)">'+b.desc+'</div>';
+    badgesHtml += '<div style="font-size:11px;margin-top:2px;color:'+(b.unlocked?'var(--low)':'var(--muted)')+'">'+(b.unlocked?'已解锁':'未解锁')+'</div></div></div>';
+  });
+
+  el.innerHTML = `
+    <h1 style="font-size:26px;font-weight:800;margin-bottom:24px">成就与激励</h1>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px" class="ach-top-row">
+      <div class="card" style="text-align:center;padding:28px">
+        <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,${level.color}22,${level.color}44);display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><i class="fas ${level.icon}" style="font-size:28px;color:${level.color}"></i></div>
+        <div style="font-size:24px;font-weight:800;color:${level.color}">${level.name}</div>
+        <div style="font-size:14px;color:var(--muted);margin-top:4px">当前等级</div>
+        <div style="margin-top:16px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px"><span>${points} 积分</span><span>${nextLevel ? '下一级: '+nextLevel.name : '已满级'}</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${levelProgress}%;background:linear-gradient(90deg,${level.color},${level.color}88)"></div></div>
+        </div>
+      </div>
+      <div class="card" style="text-align:center;padding:28px">
+        <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#F59E0B22,#F59E0B44);display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><i class="fas fa-fire" style="font-size:28px;color:#F59E0B"></i></div>
+        <div style="font-size:48px;font-weight:800;color:#F59E0B">${streak}</div>
+        <div style="font-size:14px;color:var(--muted);margin-top:4px">连续打卡天数</div>
+        <div style="margin-top:16px;font-size:13px;color:var(--muted)">累计积分：<strong style="color:var(--grad1)">${points}</strong></div>
+      </div>
+    </div>
+    <div class="section-title"><i class="fas fa-medal"></i> 成就徽章</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">${badgesHtml}</div>
+  `;
+
+  if(window.innerWidth <= 768) {
+    const row = el.querySelector('.ach-top-row');
+    if(row) row.style.gridTemplateColumns = '1fr';
+  }
+}
+
+function getLevel(points) {
+  for(const l of LEVEL_MAP) { if(points >= l.min && points <= l.max) return l; }
+  return LEVEL_MAP[0];
+}
+
+function updateStreak() {
+  const today = getTodayStr();
+  const todayDate = new Date(today);
+  let streak = 0;
+  // Check from yesterday backwards
+  let checkDate = new Date(todayDate);
+  checkDate.setDate(checkDate.getDate() - 1);
+
+  while(true) {
+    const dateStr = checkDate.getFullYear()+'-'+String(checkDate.getMonth()+1).padStart(2,'0')+'-'+String(checkDate.getDate()).padStart(2,'0');
+    const dayTasks = appData.tasks.filter(t => t.date === dateStr);
+    if(dayTasks.length === 0) break; // No tasks = break streak
+    if(dayTasks.some(t => !t.isCompleted)) break; // Incomplete = break
+    streak++;
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+
+  // Check today
+  const todayTasks = appData.tasks.filter(t => t.date === today);
+  if(todayTasks.length > 0 && todayTasks.every(t => t.isCompleted)) {
+    streak++;
+  }
+
+  appData.stats.streakDays = streak;
+}
+
+// ==================== Data Management Page ====================
+function renderDataPage() {
+  const el = document.getElementById('page-data');
+  el.innerHTML = `
+    <h1 style="font-size:26px;font-weight:800;margin-bottom:24px">数据管理</h1>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+      <div class="card" style="padding:28px;text-align:center">
+        <div style="width:56px;height:56px;border-radius:16px;background:#EEF2FF;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><i class="fas fa-download" style="font-size:22px;color:var(--grad1)"></i></div>
+        <h3 style="font-weight:700;margin-bottom:8px">导出JSON备份</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">将全部数据导出为JSON文件，可用于备份和迁移</p>
+        <button class="btn btn-primary" onclick="exportJSON()"><i class="fas fa-file-export"></i> 导出备份</button>
+      </div>
+      <div class="card" style="padding:28px;text-align:center">
+        <div style="width:56px;height:56px;border-radius:16px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><i class="fas fa-upload" style="font-size:22px;color:#F59E0B"></i></div>
+        <h3 style="font-weight:700;margin-bottom:8px">从JSON导入</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">选择之前导出的JSON文件恢复全部数据</p>
+        <label class="btn btn-secondary" style="cursor:pointer"><i class="fas fa-file-import"></i> 选择文件导入<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
+      </div>
+      <div class="card" style="padding:28px;text-align:center">
+        <div style="width:56px;height:56px;border-radius:16px;background:#D1FAE5;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><i class="fas fa-file-alt" style="font-size:22px;color:#10B981"></i></div>
+        <h3 style="font-weight:700;margin-bottom:8px">导出本周报告</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">生成本周任务完成情况的文本报告</p>
+        <button class="btn btn-secondary" onclick="exportReport()"><i class="fas fa-file-download"></i> 导出报告</button>
+      </div>
+      <div class="card" style="padding:28px;text-align:center">
+        <div style="width:56px;height:56px;border-radius:16px;background:#FEE2E2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><i class="fas fa-trash-alt" style="font-size:22px;color:#EF4444"></i></div>
+        <h3 style="font-weight:700;margin-bottom:8px">清空所有数据</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">删除全部任务、倒计时和统计数据，不可恢复</p>
+        <button class="btn btn-danger" onclick="confirmClearAll()"><i class="fas fa-exclamation-triangle"></i> 清空数据</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:24px;padding:20px">
+      <h3 style="font-weight:700;margin-bottom:12px">数据概览</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;font-size:14px">
+        <div><span style="color:var(--muted)">任务总数：</span><strong>${appData.tasks.length}</strong></div>
+        <div><span style="color:var(--muted)">倒计时事件：</span><strong>${appData.countdowns.length}</strong></div>
+        <div><span style="color:var(--muted)">累计积分：</span><strong>${appData.stats.totalPoints}</strong></div>
+        <div><span style="color:var(--muted)">连续打卡：</span><strong>${appData.stats.streakDays}天</strong></div>
+      </div>
+    </div>
+  `;
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(appData, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'taskflow_backup_'+getTodayStr()+'.json';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('数据已导出', 'success');
+}
+
+function importJSON(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if(data.tasks && data.countdowns && data.stats) {
+        appData = data;
+        saveData();
+        showToast('数据已导入恢复', 'success');
+        switchPage(currentPage);
+      } else {
+        showToast('文件格式不正确', 'error');
+      }
+    } catch(err) {
+      showToast('文件解析失败', 'error');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function exportReport() {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+  const weekDates = [];
+  for(let i = 0; i < 7; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    weekDates.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+  }
+
+  const weekTasks = appData.tasks.filter(t => weekDates.includes(t.date));
+  const weekDone = weekTasks.filter(t => t.isCompleted).length;
+  const weekRate = weekTasks.length > 0 ? Math.round(weekDone/weekTasks.length*100) : 0;
+
+  let report = '=== TaskFlow 本周报告 ===\n';
+  report += '报告日期：' + getTodayStr() + '\n\n';
+  report += '【本周概览】\n';
+  report += '任务总数：' + weekTasks.length + '\n';
+  report += '完成数：' + weekDone + '\n';
+  report += '完成率：' + weekRate + '%\n';
+  report += '连续打卡：' + appData.stats.streakDays + '天\n';
+  report += '累计积分：' + appData.stats.totalPoints + '\n\n';
+
+  report += '【每日明细】\n';
+  const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+  weekDates.forEach((d, i) => {
+    const dt = appData.tasks.filter(t => t.date === d);
+    const dd = dt.filter(t => t.isCompleted).length;
+    report += dayNames[i] + ' (' + d + ')：' + dd + '/' + dt.length + ' 完成\n';
+    dt.forEach(t => {
+      report += '  - ' + (t.isCompleted?'[v]':'[ ]') + ' ' + t.name + ' (' + t.startTime + '-' + t.endTime + ') [' + IMPORTANCE_MAP[t.importance] + ']\n';
+    });
+  });
+
+  const blob = new Blob([report], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'taskflow_report_'+getTodayStr()+'.txt';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('报告已导出', 'success');
+}
+
+function confirmClearAll() {
+  showConfirmModal('确定要清空所有数据吗？此操作不可恢复！', function() {
+    appData = { tasks:[], countdowns:[], stats:{totalPoints:0,streakDays:0}, weeklyHistory:[] };
+    saveData();
+    showToast('所有数据已清空', 'success');
+    switchPage(currentPage);
+  });
+}
+
+// ==================== Clock & Timers ====================
+function updateClock() {
+  const now = new Date();
+  const clockEl = document.getElementById('live-clock');
+  if(clockEl) {
+    clockEl.textContent = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
+  }
+
+  // Update countdown digits
+  document.querySelectorAll('.countdown-card').forEach(card => {
+    const targetDate = card.dataset.target;
+    if(!targetDate) return;
+    const target = new Date(targetDate + 'T00:00:00');
+    const diff = target - now;
+    const days = Math.max(0, Math.floor(diff/(1000*60*60*24)));
+    const hours = Math.max(0, Math.floor((diff%(1000*60*60*24))/(1000*60*60)));
+    const mins = Math.max(0, Math.floor((diff%(1000*60*60))/(1000*60)));
+    const secs = Math.max(0, Math.floor((diff%(1000*60))/1000));
+
+    const dEl = card.querySelector('.cd-d');
+    const hEl = card.querySelector('.cd-h');
+    const mEl = card.querySelector('.cd-m');
+    const sEl = card.querySelector('.cd-s');
+    if(dEl) dEl.textContent = days;
+    if(hEl) hEl.textContent = String(hours).padStart(2,'0');
+    if(mEl) mEl.textContent = String(mins).padStart(2,'0');
+    if(sEl) sEl.textContent = String(secs).padStart(2,'0');
+  });
+}
+
+// ==================== Initialization ====================
+function init() {
+  initData();
+  generateRepeatInstances();
+  renderTodayPage();
+
+  // Start clock
+  clockTimer = setInterval(() => {
+    updateClock();
+    // Re-render today page every 60 seconds to update time indicators
+  }, 1000);
+
+  // Refresh today page every 30 seconds for time-based updates
+  setInterval(() => {
+    if(currentPage === 'today') renderTodayPage();
+    if(currentPage === 'countdown') renderCountdownPage();
+  }, 30000);
+
+  // Handle resize for charts
+  window.addEventListener('resize', () => {
+    chartInstances.forEach(c => { try { c.resize(); } catch(e){} });
+  });
+}
+
+// Start the app
+init();
+</script>
+</body>
+</html>
